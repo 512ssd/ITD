@@ -1,0 +1,53 @@
+async function uploadAndSetBanner(gifUrl) {
+    console.clear();
+    console.log("получение токен аккаунта...");
+    const refreshRes = await fetch('/api/v1/auth/refresh', { method: 'POST' });
+    const authData = await refreshRes.json();
+    const token = authData.accessToken;
+
+    if (!token) {
+        console.error("[-] токен не получен");
+        return;
+    }
+    console.log("[+] токен получен");
+    const response = await fetch(gifUrl);
+    const blob = await response.blob();
+    const file = new File([blob], "animation.gif", { type: "image/gif" });
+
+   
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const uploadRes = await fetch('/api/files/upload', { 
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        const uploadData = await uploadRes.json();
+        const fileId = uploadData.id || uploadData.fileId; // Смотрим, какой ключ они вернули
+
+        if (fileId) {
+            console.log("загружено. ID:", fileId);
+
+            const profileRes = await fetch('/api/users/me', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    bannerId: fileId
+                })
+            });
+
+            if (profileRes.status === 200) {
+                console.log("[+] гифка установлена");
+            } else {
+                console.log("[!] err:", profileRes.status);
+            }
+        }
+    } catch (e) {
+        console.error("[!!] err:", e);
+    }
+}
+
+uploadAndSetBanner("прямая_ссылка_на_гиф_тут");
